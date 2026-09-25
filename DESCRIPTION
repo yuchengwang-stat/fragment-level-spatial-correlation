@@ -1,0 +1,22 @@
+Package: fragcorr
+Type: Package
+Title: Fragment-Level Spatial Correlation of CpG Methylation
+Version: 0.1.0
+Authors@R: person("Yucheng", "Wang", email = "ychwang0331@gmail.com",
+                  role = c("aut", "cre"))
+Description: Estimates how strongly the methylation states of CpGs on the same
+    sequenced DNA fragment co-vary, as a function of the distance between them,
+    from bisulfite sequencing reads in the wgbstools .pat / .beta formats. Each
+    region and cell type receives a posterior distribution over an exponential
+    correlation kernel rho(d) = phi * exp(-d / s), defined on the latent probit
+    scale and conditional on each CpG's own methylation rate. Fragment
+    likelihoods are multivariate normal orthant probabilities, computed by
+    expectation propagation; a prior over kernels is fitted per methylation bin
+    by empirical Bayes.
+License: file LICENSE
+Encoding: UTF-8
+Depends: R (>= 4.1)
+Imports: data.table, mixsqp, Rcpp, parallel, stats, utils
+LinkingTo: Rcpp, RcppArmadillo
+Suggests: testthat (>= 3.0.0), mvtnorm
+Config/testthat/edition: 3

@@ -1,0 +1,7 @@
+^validation$
+^docs$
+^\.git$
+^\.gitignore$
+^example_run$
+^.*\.Rproj$
+^\.Rproj\.user$

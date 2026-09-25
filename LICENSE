@@ -1,0 +1,7 @@
+Copyright (c) 2026 Yucheng Wang. All rights reserved.
+
+No licence to use, copy, modify or distribute this software is granted except
+by the copyright holder's written permission.
+
+Exception: src/ep_core.h and src/A_aux.h / src/A_aux_impl.h are derived from the
+EPmvnCDF package and remain under its MIT licence; see inst/COPYRIGHTS.

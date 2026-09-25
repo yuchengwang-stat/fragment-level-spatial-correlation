@@ -1,0 +1,17 @@
+# build products
+*.o
+*.so
+*.dll
+*.tar.gz
+fragcorr.Rcheck/
+# runs and data
+example_run/
+work/
+out/
+*.pat
+*.pat.gz
+*.beta
+# editor / OS
+.Rproj.user/
+.Rhistory
+.DS_Store

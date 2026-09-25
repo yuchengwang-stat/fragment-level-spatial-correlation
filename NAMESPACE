@@ -1,0 +1,13 @@
+useDynLib(fragcorr, .registration = TRUE)
+importFrom(Rcpp, evalCpp)
+import(data.table)
+
+export(fc_patterns, fc_bins, assign_bin)
+export(read_cpg_list, merge_positions, build_regions, validate_regions)
+export(load_cpg_index, index_regions, validate_indexed)
+export(read_beta_counts, read_pat, fragments_in_regions)
+export(loglik_all_patterns, sample_loglik)
+export(combine_loglik, fit_prior_bin, fit_priors, posterior_from_prior, summarise_posterior)
+export(region_tables, decay_curves, read_posteriors)
+export(simulate_dataset)
+export(fc_args, fc_require, fc_script)
