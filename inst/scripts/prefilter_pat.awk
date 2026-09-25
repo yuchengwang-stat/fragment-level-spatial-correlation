@@ -34,7 +34,10 @@ BEGIN {
 
     # regions ending before this read starts can never match again
     while (p <= n && re[p] < s) p++
-    if (p > n) { nextfile }        # past the last region: nothing further can match
+    # Past the last region nothing can match, but keep reading to the end: stopping
+    # early (nextfile / exit) makes the upstream gzip die of SIGPIPE, which a
+    # caller running under `set -o pipefail` sees as a failure.
+    if (p > n) next
 
     # the read overlaps region p if it starts at or before that region's end
     if (s <= re[p] && e >= rs[p]) { print; kept++ }
