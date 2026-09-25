@@ -148,12 +148,37 @@ The region's mean methylation also places it in the 0.4 to 0.6 bin, although
 none of its CpGs is intermediate. Such regions should be flagged rather than
 interpreted.
 
+### 5b. Uneven rates within one range are fine
+
+`validation/test_graded_layouts.R` draws per-CpG rates within one range, with
+fresh values for every region: high (0.70 to 0.95), intermediate (0.35 to 0.65)
+or low (0.05 to 0.30). The rates are either random or a monotone gradient, and
+are compared with a uniform control. It uses two true kernels.
+
+| layout | truth phi 0.6, s 100 | truth phi 0.3, s 300 |
+|---|---|---|
+| high uniform | 0.600 / 100 | 0.293 / 300 |
+| high random | 0.589 / 111 | 0.291 / 300 |
+| high gradient | 0.588 / 107 | 0.322 / 274 |
+| hemi uniform | 0.599 / 100 | 0.319 / 296 |
+| hemi random | 0.600 / 100 | 0.324 / 295 |
+| hemi gradient | 0.600 / 100 | 0.304 / 295 |
+| low uniform | 0.590 / 103 | 0.309 / 294 |
+| low random | 0.596 / 99 | 0.312 / 289 |
+| low gradient | 0.589 / 101 | 0.307 / 289 |
+
+Every entry is within 0.03 of the true `phi` and about 10% of the true `s`. Only
+low/high mixtures need flagging, and `heterogeneity_stats()` does that; its
+classification of uniform, graded, split and interleaved regions is covered by
+`tests/testthat/test-heterogeneity.R`.
+
 ## Rerunning
 
 ```bash
 Rscript validation/test_equivalence.R
 Rscript validation/test_bias_sources.R        # a few minutes
 Rscript validation/test_mixed_layouts.R
+Rscript validation/test_graded_layouts.R
 Rscript validation/test_ep_vs_exact.R         # needs mvtnorm; a few minutes
 Rscript validation/baseR_reference.R
 Rscript -e 'testthat::test_dir("tests/testthat")'

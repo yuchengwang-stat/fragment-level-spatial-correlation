@@ -28,6 +28,9 @@
 \alias{fc_args}
 \alias{fc_require}
 \alias{fc_script}
+\alias{heterogeneity_stats}
+\alias{pooled_region_counts}
+\alias{target_rows}
 \docType{package}
 \title{Fragment-Level Spatial Correlation of CpG Methylation}
 \description{
@@ -57,6 +60,10 @@ its definition.
   \item{Results}{\code{region_tables()}: long and wide result tables.
     \code{decay_curves()}: posterior-averaged \eqn{\rho(d)} per methylation bin.
     \code{read_posteriors()}: step-3 files as a named list.}
+  \item{Uniformity}{\code{pooled_region_counts()}: per-CpG counts pooled per group from
+    the \code{.beta} files. \code{target_rows()}: which of those CpGs are listed.
+    \code{heterogeneity_stats()}: per region and group, how uniform the methylation is,
+    and whether low and high CpGs are mixed.}
   \item{Other}{\code{simulate_dataset()}: a synthetic dataset in wgbstools format with
     known kernels. \code{fc_args()}, \code{fc_require()}, \code{fc_script()}:
     helpers for the command-line scripts in \code{system.file("scripts", package = "fragcorr")}.}

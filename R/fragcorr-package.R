@@ -12,4 +12,5 @@ utils::globalVariables(c(
   "start", "end", "width", "n_cpg", "n_cpg_in_region", "n_list_expected",
   "n_list_cpg", "list_cpgs", "list_category", "category", "region", "celltype",
   "best_phi", "best_s", "best_post", "post_winner", "phi_mean", "s_mean",
-  "pattern", "..pattern_names"))
+  "pattern", "..pattern_names", "layout", "p", "tgt", "r2_split", "n_low", "n_high",
+  "meth_sd", "meth_jump", "meth_range", "n_cov", "target_lowhigh", "region_id"))

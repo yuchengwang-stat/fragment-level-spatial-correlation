@@ -5,6 +5,8 @@
 ##         same filtering
 ##   post  a named list, one element per cell type, each the `posterior` table
 ##         written by step 3 (names become the cell-type labels)
+##   het   optional, the output of heterogeneity_stats() for the same regions and
+##         cell types; its uniformity columns are added to `long`
 ##
 ## Returns list(long, wide).
 ##
@@ -19,7 +21,7 @@
 ## patterns.  meth is the region's methylation in that cell type, the quantity
 ## that chose its prior bin.  A cell type with no fragment in a region has no row
 ## in `long` and blank cells in `wide`.
-region_tables <- function(reg, cpg, post) {
+region_tables <- function(reg, cpg, post, het = NULL) {
   if (is.null(names(post)) || any(!nzchar(names(post))))
     stop("post must be a named list: one posterior table per cell type")
   reg <- data.table::as.data.table(reg)
@@ -83,5 +85,14 @@ region_tables <- function(reg, cpg, post) {
   data.table::setcolorder(long, c("region_id", "region", "chr", "n_list_cpg", "list_cpgs",
                                   "celltype", "phi", "s", "meth", "post_winner",
                                   "phi_mean", "s_mean"))
+  if (!is.null(het)) {
+    h <- data.table::as.data.table(het)[, list(region_id, celltype, meth_sd = round(meth_sd, 4),
+                                               meth_jump = round(meth_jump, 4),
+                                               r2_split = round(r2_split, 4), target_lowhigh, layout)]
+    long <- merge(long, h, by = c("region_id", "celltype"), all.x = TRUE)
+    data.table::setorder(long, region_id, celltype)
+    data.table::setcolorder(long, c("region_id", "region", "chr", "n_list_cpg", "list_cpgs",
+                                    "celltype"))
+  }
   list(long = long[], wide = wide[])
 }

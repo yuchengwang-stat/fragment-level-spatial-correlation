@@ -164,11 +164,23 @@ Rscript $FC/03_posterior.R --lik lik/<celltype> --out post/<celltype>.rds --labe
 If the `--prior` file exists, it is used instead of fitting. This lets several
 groups share one prior. If it does not exist, the fitted prior is written there.
 
+**Optional: how uniform each region's methylation is.** Recommended.
+
+```bash
+Rscript $FC/09_heterogeneity.R --regions regions.rds --sheet samples.tsv --ref cpg_index.rds \
+  --cpg cpgs.csv --col hg38 --out results/het.tsv
+```
+
+This reads each sample's `.beta`, pools the counts per cell type for every CpG
+in the regions, and labels each region x cell type with a `layout`. Regions
+whose CpGs mix very low and very high methylation are flagged, because their
+mean methylation describes none of their CpGs; see Limitations.
+
 **Step 4: result tables.**
 
 ```bash
 Rscript $FC/04_region_table.R --regions regions.rds --cpg cpgs.csv --col hg38 \
-  --post post --out results/region_ct
+  --post post --out results/region_ct [--het results/het.tsv]
 ```
 
 `--cpg`, `--col` and `--category` must be the same as in step 1.
@@ -206,6 +218,10 @@ scoring succeeds, it removes that file and its region index file by name. Set
 | `post_winner` | That largest posterior probability |
 | `phi_mean`, `s_mean` | Posterior expectations over all 21 kernels |
 | `meth` | The region's methylation in that cell type: the quantity that chose its prior bin |
+| `meth_sd`, `meth_jump` | With `--het`: SD of the per-CpG rates in the region, and mean absolute difference between neighbouring CpGs |
+| `r2_split` | With `--het`: share of that variation explained by the best single cut into two contiguous pieces |
+| `target_lowhigh` | With `--het`: the listed CpGs include one at <= 0.2 and one at >= 0.8 |
+| `layout` | With `--het`: `uniform` (sd <= 0.10), `graded` (varies, no low/high mixture), `mixed_split` or `mixed_interleaved` (at least two CpGs <= 0.2 and two >= 0.8, as two halves or interleaved), `too_few_cpgs` |
 
 **`<prefix>_wide.csv`** has one row per region. It holds the coordinates, the
 width, all CpGs in the region, the listed CpGs and their categories, and then
@@ -221,6 +237,8 @@ column per kernel), the fitted prior, and the sample list.
   often cell types agree on a region's winning kernel.
 - `06_prior_check.R`: whether disagreement between cell types survives a single
   shared prior.
+- `09_heterogeneity.R`: the uniformity of each region's methylation per cell
+  type, as described above.
 - `07_decay_curves.R` and `08_plot_decay.R`: the posterior-averaged curve
   `rho(d)` per methylation bin, with a bootstrap band across cell types.
 
@@ -254,11 +272,16 @@ In short (details in [docs/VALIDATION.md](docs/VALIDATION.md)):
   is off by up to about 0.03 in probability. `--use-bvn` switches to the exact
   closed form, which is more accurate but changes the numbers relative to the
   original method.
-- **Regions whose adjacent CpGs alternate between low and high methylation are
-  unreliable.** Their reads carry little information about the kernel, EP then
-  tilts `phi` upward, and their average methylation puts them in the middle bin.
-  A region split into a low half and a high half is fine. See section 5 of
-  [docs/VALIDATION.md](docs/VALIDATION.md).
+- **Uneven methylation within a region is fine, a low/high mixture is not.**
+  CpGs at different rates within one range (for example 0.95, 0.9, 0.8 and 0.7)
+  do not affect the estimate, because every CpG has its own threshold. A region
+  that mixes very low and very high CpGs has a different problem: its mean
+  methylation places it in a bin none of its CpGs belong to. If the low and high
+  CpGs are interleaved, the reads also carry little information about the
+  kernel, and EP tilts `phi` upward. Run `09_heterogeneity.R` and treat
+  `layout = mixed_split` or `mixed_interleaved` separately. Summaries by
+  methylation bin in particular should be checked without them. See section 5
+  of [docs/VALIDATION.md](docs/VALIDATION.md).
 - **Groups with few samples are noisier.** Each group fits its own prior, and a
   group with one or two samples fits it from little data. `06_prior_check.R`
   shows how much this matters for your data.
@@ -271,7 +294,7 @@ In short (details in [docs/VALIDATION.md](docs/VALIDATION.md)):
 ```
 R/                  package code: regions, indexing, reads, likelihood, prior/posterior, tables, curves, simulator
 src/                C++ likelihood engine (EP orthant probabilities)
-inst/scripts/       command-line steps 01-08 and the per-sample wrapper
+inst/scripts/       command-line steps 01-09 and the per-sample wrapper
 inst/slurm/         SLURM array templates
 inst/examples/      run_example.sh: the full pipeline on simulated data
 tests/testthat/     unit and end-to-end tests

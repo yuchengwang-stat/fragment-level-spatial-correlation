@@ -180,7 +180,30 @@ within each cell type. It then takes a percentile bootstrap across cell types.
 The band answers whether a pattern holds across cell types; regions within one
 cell type are not independent replicates.
 
-## 9. Assumptions, and what they imply
+## 9. Uniformity of a region's methylation
+
+`heterogeneity_stats()` and `09_heterogeneity.R` measure how uniform a region's
+methylation is, per cell type. For each CpG in the region, counts are pooled
+over the cell type's samples, and CpGs with pooled depth below `min_n` (default
+20) are dropped. With `p_1..p_n` the rates of the remaining CpGs in genome
+order:
+
+- `meth_sd` is the SD of `p`, and `meth_range` is `max(p) - min(p)`.
+- `meth_jump = mean |p_(j+1) - p_j|`.
+- `r2_split = 1 - min_c SSE_c / SST`. Here `SSE_c` is the within-piece sum of
+  squares after cutting between CpG `c` and `c+1`, and `SST` is the total sum of
+  squares. It is 1 for two flat pieces, and low when high and low CpGs are
+  interleaved.
+- `layout` is:
+  - `mixed_split` or `mixed_interleaved`, if at least two CpGs are at
+    `<= 0.2` and two at `>= 0.8` (with `r2_split >= 0.75` for split);
+  - otherwise `uniform`, if `meth_sd <= 0.10`;
+  - otherwise `graded`.
+
+All cut-offs are arguments. Binomial noise contributes to `meth_sd`: at
+`p = 0.5` and depth 20, its SD alone is about 0.11.
+
+## 10. Assumptions, and what they imply
 
 - **Marginals are plugged in.** The fit is conditional on each CpG's per-sample
   rate from the `.beta`, which comes from the same reads. This is a two-step

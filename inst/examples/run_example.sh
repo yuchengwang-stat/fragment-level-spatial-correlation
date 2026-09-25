@@ -30,9 +30,13 @@ for d in "$W"/lik/*/; do
   Rscript "$FC/03_posterior.R" --lik "$d" --out "$W/post/$ct.rds" --label "$ct"
 done
 
+echo "== uniformity of each region's methylation, per cell type"
+Rscript "$FC/09_heterogeneity.R" --regions "$W/regions.rds" --sheet "$W/data/samples.tsv" \
+  --ref "$W/data/cpg_index.rds" --cpg "$W/data/cpg_list.csv" --col hg38 --out "$W/out/het.tsv"
+
 echo "== step 4: result tables"
 Rscript "$FC/04_region_table.R" --regions "$W/regions.rds" --cpg "$W/data/cpg_list.csv" \
-  --col hg38 --post "$W/post" --out "$W/out/region_ct"
+  --col hg38 --post "$W/post" --het "$W/out/het.tsv" --out "$W/out/region_ct"
 
 echo "== recovered against the truth"
 Rscript -e "
