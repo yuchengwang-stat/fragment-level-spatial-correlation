@@ -19,9 +19,14 @@ echo "== step 1: regions"
 Rscript "$FC/01_regions.R" --cpg "$W/data/cpg_list.csv" --col hg38 \
   --ref "$W/data/cpg_index.rds" --out "$W/regions.rds"
 
+echo "== step 1b: split regions whose listed CpGs sit at opposite extremes"
+Rscript "$FC/01b_refine_regions.R" --regions "$W/regions.rds" --sheet "$W/data/samples.tsv" \
+  --ref "$W/data/cpg_index.rds" --cpg "$W/data/cpg_list.csv" --col hg38 \
+  --min-celltypes 1 --out "$W/regions_refined.rds"
+
 echo "== step 2: log-likelihoods, one sample at a time"
 tail -n +2 "$W/data/samples.tsv" | while IFS=$'\t' read -r sample celltype pat beta; do
-  bash "$FC/loglik_one_sample.sh" "$W/regions.rds" "$pat" "$beta" "$W/lik/$celltype/$sample.rds" 2
+  bash "$FC/loglik_one_sample.sh" "$W/regions_refined.rds" "$pat" "$beta" "$W/lik/$celltype/$sample.rds" 2
 done
 
 echo "== step 3: prior and posterior, one cell type at a time"
@@ -31,11 +36,11 @@ for d in "$W"/lik/*/; do
 done
 
 echo "== uniformity of each region's methylation, per cell type"
-Rscript "$FC/09_heterogeneity.R" --regions "$W/regions.rds" --sheet "$W/data/samples.tsv" \
+Rscript "$FC/09_heterogeneity.R" --regions "$W/regions_refined.rds" --sheet "$W/data/samples.tsv" \
   --ref "$W/data/cpg_index.rds" --cpg "$W/data/cpg_list.csv" --col hg38 --out "$W/out/het.tsv"
 
 echo "== step 4: result tables"
-Rscript "$FC/04_region_table.R" --regions "$W/regions.rds" --cpg "$W/data/cpg_list.csv" \
+Rscript "$FC/04_region_table.R" --regions "$W/regions_refined.rds" --cpg "$W/data/cpg_list.csv" \
   --col hg38 --post "$W/post" --het "$W/out/het.tsv" --out "$W/out/region_ct"
 
 echo "== recovered against the truth"

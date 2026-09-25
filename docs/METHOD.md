@@ -38,6 +38,18 @@ not only the listed ones.
 
 Defaults: `pad = 250`, `max_width = 1000`, `min_cpgs = 2`.
 
+**Refinement (`refine_regions()`, step 1b).** Methylation is pooled per cell type
+over the `.beta` files. A run of consecutive listed CpGs conflicts in a cell type
+when, among its listed CpGs with pooled depth >= 20, one is at <= 0.2 and another
+at >= 0.8. A run that conflicts in at least `min_celltypes` cell types (default 5)
+is cut between two consecutive listed CpGs. The cut is the one leaving the fewest
+conflicts on its two sides, with ties broken by the widest bp gap, and the two
+sides are checked recursively. Each piece spans its listed CpGs padded by `pad`,
+within the original region, and neighbouring pieces meet at the midpoint between
+them. The split does not depend on the cell type being fitted, so all cell types
+share one set of regions. Requiring several cell types keeps a single noisy
+per-CpG estimate from causing a cut.
+
 ## 3. The model for one fragment
 
 Take a fragment in sample `r`. Let `j = 1..K` be its usable CpGs: called `C` or
@@ -188,7 +200,10 @@ over the cell type's samples, and CpGs with pooled depth below `min_n` (default
 20) are dropped. With `p_1..p_n` the rates of the remaining CpGs in genome
 order:
 
-- `meth_sd` is the SD of `p`, and `meth_range` is `max(p) - min(p)`.
+- `meth_all`, `meth_all_sd` and `meth_all_iqr` are the mean, SD and
+  interquartile range of `p`. `meth_target`, `meth_target_sd` and
+  `meth_target_iqr` are the same over the listed CpGs only.
+  `meth_range` is `max(p) - min(p)`.
 - `meth_jump = mean |p_(j+1) - p_j|`.
 - `r2_split = 1 - min_c SSE_c / SST`. Here `SSE_c` is the within-piece sum of
   squares after cutting between CpG `c` and `c+1`, and `SST` is the total sum of
@@ -197,10 +212,10 @@ order:
 - `layout` is:
   - `mixed_split` or `mixed_interleaved`, if at least two CpGs are at
     `<= 0.2` and two at `>= 0.8` (with `r2_split >= 0.75` for split);
-  - otherwise `uniform`, if `meth_sd <= 0.10`;
+  - otherwise `uniform`, if the SD of `p` is `<= 0.10`;
   - otherwise `graded`.
 
-All cut-offs are arguments. Binomial noise contributes to `meth_sd`: at
+All cut-offs are arguments. Binomial noise contributes to the SD: at
 `p = 0.5` and depth 20, its SD alone is about 0.11.
 
 ## 10. Assumptions, and what they imply

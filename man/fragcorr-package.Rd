@@ -31,6 +31,8 @@
 \alias{heterogeneity_stats}
 \alias{pooled_region_counts}
 \alias{target_rows}
+\alias{match_targets}
+\alias{refine_regions}
 \docType{package}
 \title{Fragment-Level Spatial Correlation of CpG Methylation}
 \description{
@@ -49,7 +51,9 @@ its definition.
   \item{Regions}{\code{read_cpg_list()}, \code{merge_positions()}, \code{build_regions()},
     \code{validate_regions()}: regions from a CpG list.
     \code{load_cpg_index()}, \code{index_regions()}, \code{validate_indexed()}:
-    map regions onto the CpG index (row k = \code{.beta} row k).}
+    map regions onto the CpG index (row k = \code{.beta} row k).
+    \code{match_targets()}, \code{refine_regions()}: split regions whose listed CpGs sit at
+    opposite methylation extremes in enough cell types.}
   \item{Reads}{\code{read_beta_counts()}, \code{read_pat()}: wgbstools inputs.
     \code{fragments_in_regions()}: reads trimmed to regions with their counts.}
   \item{Likelihood}{\code{loglik_all_patterns()}: per-fragment log-likelihoods under

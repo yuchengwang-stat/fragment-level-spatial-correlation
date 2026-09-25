@@ -138,6 +138,23 @@ Rscript $FC/01_regions.R --cpg cpgs.csv --col hg38 --ref cpg_index.rds --out reg
   [--category HighValue,EPIC] [--pad 250] [--max-width 1000] [--min-cpgs 2]
 ```
 
+**Step 1b: split regions whose targets disagree.** Recommended.
+
+```bash
+Rscript $FC/01b_refine_regions.R --regions regions.rds --sheet samples.tsv --ref cpg_index.rds \
+  --cpg cpgs.csv --col hg38 --out regions_refined.rds [--min-celltypes 5]
+```
+
+A region can hold one listed CpG that is unmethylated and another that is
+methylated; its mean methylation then describes neither. This step pools
+methylation per cell type from the `.beta` files. A run of listed CpGs is cut
+between two of them when, in at least `--min-celltypes` cell types, one is at
+<= 0.2 and another at >= 0.8. The cut goes where it separates the low and high
+CpGs best, and each side is checked again. The split is the same for every cell
+type. Pieces keep their parent region's id. A piece left with one listed CpG is
+kept and marked `single_target` in the results; if it holds no other CpG, its
+posterior is just the prior. Use the refined regions in every later step.
+
 **Step 2: log-likelihoods.** Run this once per sample. The wrapper first keeps
 only the reads that can touch a region (an `awk` pass over the `.pat.gz`), then
 scores them.
@@ -212,16 +229,20 @@ scoring succeeds, it removes that file and its region index file by name. Set
 | Column | Meaning |
 |---|---|
 | `region_id`, `region`, `chr` | Region number and range (`chr:start-end`) |
+| `parent_region` | The step-1 region this one was split from (its own id if not split) |
 | `n_list_cpg`, `list_cpgs` | The listed CpGs inside the region, separated by `;` |
+| `single_target` | The region holds a single listed CpG |
 | `celltype` | Cell type (the step-3 file name) |
 | `phi`, `s` | The kernel with the largest posterior probability |
 | `post_winner` | That largest posterior probability |
 | `phi_mean`, `s_mean` | Posterior expectations over all 21 kernels |
 | `meth` | The region's methylation in that cell type: the quantity that chose its prior bin |
-| `meth_sd`, `meth_jump` | With `--het`: SD of the per-CpG rates in the region, and mean absolute difference between neighbouring CpGs |
+| `meth_all`, `meth_all_sd`, `meth_all_iqr` | With `--het`: mean, SD and interquartile range of the per-CpG methylation over every CpG in the region (pooled per cell type, depth >= 20) |
+| `meth_target`, `meth_target_sd`, `meth_target_iqr` | With `--het`: the same over the listed CpGs only |
+| `meth_jump` | With `--het`: mean absolute difference between neighbouring CpGs |
 | `r2_split` | With `--het`: share of that variation explained by the best single cut into two contiguous pieces |
 | `target_lowhigh` | With `--het`: the listed CpGs include one at <= 0.2 and one at >= 0.8 |
-| `layout` | With `--het`: `uniform` (sd <= 0.10), `graded` (varies, no low/high mixture), `mixed_split` or `mixed_interleaved` (at least two CpGs <= 0.2 and two >= 0.8, as two halves or interleaved), `too_few_cpgs` |
+| `layout` | With `--het`, over every CpG with depth >= 20: `too_few_cpgs` (fewer than 3); `mixed_split` / `mixed_interleaved` (at least two CpGs <= 0.2 and two >= 0.8; split if one cut explains >= 75% of the variation, `r2_split`); otherwise `uniform` (SD <= 0.10) or `graded` (SD > 0.10) |
 
 **`<prefix>_wide.csv`** has one row per region. It holds the coordinates, the
 width, all CpGs in the region, the listed CpGs and their categories, and then
@@ -294,7 +315,7 @@ In short (details in [docs/VALIDATION.md](docs/VALIDATION.md)):
 ```
 R/                  package code: regions, indexing, reads, likelihood, prior/posterior, tables, curves, simulator
 src/                C++ likelihood engine (EP orthant probabilities)
-inst/scripts/       command-line steps 01-09 and the per-sample wrapper
+inst/scripts/       command-line steps 01, 01b, 02-09 and the per-sample wrapper
 inst/slurm/         SLURM array templates
 inst/examples/      run_example.sh: the full pipeline on simulated data
 tests/testthat/     unit and end-to-end tests

@@ -25,8 +25,10 @@ region_tables <- function(reg, cpg, post, het = NULL) {
   if (is.null(names(post)) || any(!nzchar(names(post))))
     stop("post must be a named list: one posterior table per cell type")
   reg <- data.table::as.data.table(reg)
+  has_parent <- "parent_region" %in% names(reg)
   reg <- reg[, list(chr, interval_id, start, end, width,
-                    n_cpg_region = n_cpg_in_region, n_list_expected = n_cpg)]
+                    n_cpg_region = n_cpg_in_region, n_list_expected = n_cpg,
+                    parent_region = if (has_parent) parent_region else interval_id)]
 
   ## place the list CpGs in regions (regions do not overlap within a chromosome)
   cp <- unique(data.table::as.data.table(cpg)[, list(chr, pos, category)])
@@ -53,6 +55,7 @@ region_tables <- function(reg, cpg, post, het = NULL) {
   reg[, n_list_expected := NULL]
   if (all(is.na(cp$category))) reg[, list_category := NULL]
   reg[, region := sprintf("%s:%d-%d", chr, start, end)]
+  reg[, single_target := n_list_cpg == 1L]
 
   long <- data.table::rbindlist(lapply(names(post), function(ct) {
     d <- data.table::as.data.table(post[[ct]])
@@ -69,30 +72,36 @@ region_tables <- function(reg, cpg, post, het = NULL) {
   new <- unlist(lapply(cts, function(ct) paste0(ct, c("_phi", "_s", "_meth"))))
   data.table::setnames(wide, old, new)
   for (j in grep("_meth$", new, value = TRUE)) data.table::set(wide, j = j, value = round(wide[[j]], 4))
-  lead <- intersect(c("region", "chr", "start", "end", "width", "n_cpg_region", "n_list_cpg",
-                      "list_cpgs", "list_category"), names(reg))
+  lead <- intersect(c("region", "chr", "start", "end", "width", "parent_region", "n_cpg_region",
+                      "n_list_cpg", "single_target", "list_cpgs", "list_category"), names(reg))
   wide <- merge(reg, wide, by = c("chr", "interval_id"), all.x = TRUE)
   data.table::setorder(wide, interval_id)
   data.table::setnames(wide, "interval_id", "region_id")
   data.table::setcolorder(wide, c("region_id", lead, new))
 
-  long <- merge(reg[, list(chr, interval_id, region, n_list_cpg, list_cpgs)], long,
-                by = c("chr", "interval_id"))
+  long <- merge(reg[, list(chr, interval_id, region, parent_region, n_list_cpg, single_target,
+                           list_cpgs)], long, by = c("chr", "interval_id"))
   data.table::setorder(long, interval_id, celltype)
   data.table::setnames(long, "interval_id", "region_id")
   long[, `:=`(meth = round(meth, 4), post_winner = round(post_winner, 4),
               phi_mean = round(phi_mean, 4), s_mean = round(s_mean, 1))]
-  data.table::setcolorder(long, c("region_id", "region", "chr", "n_list_cpg", "list_cpgs",
-                                  "celltype", "phi", "s", "meth", "post_winner",
-                                  "phi_mean", "s_mean"))
+  data.table::setcolorder(long, c("region_id", "region", "chr", "parent_region", "n_list_cpg",
+                                  "single_target", "list_cpgs", "celltype", "phi", "s", "meth",
+                                  "post_winner", "phi_mean", "s_mean"))
   if (!is.null(het)) {
-    h <- data.table::as.data.table(het)[, list(region_id, celltype, meth_sd = round(meth_sd, 4),
+    h <- data.table::as.data.table(het)[, list(region_id, celltype,
+                                               meth_all = round(meth_all, 4),
+                                               meth_all_sd = round(meth_all_sd, 4),
+                                               meth_all_iqr = round(meth_all_iqr, 4),
+                                               meth_target = round(meth_target, 4),
+                                               meth_target_sd = round(meth_target_sd, 4),
+                                               meth_target_iqr = round(meth_target_iqr, 4),
                                                meth_jump = round(meth_jump, 4),
                                                r2_split = round(r2_split, 4), target_lowhigh, layout)]
     long <- merge(long, h, by = c("region_id", "celltype"), all.x = TRUE)
     data.table::setorder(long, region_id, celltype)
-    data.table::setcolorder(long, c("region_id", "region", "chr", "n_list_cpg", "list_cpgs",
-                                    "celltype"))
+    data.table::setcolorder(long, c("region_id", "region", "chr", "parent_region", "n_list_cpg",
+                                    "single_target", "list_cpgs", "celltype"))
   }
   list(long = long[], wide = wide[])
 }

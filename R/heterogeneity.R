@@ -12,15 +12,20 @@
 ## These functions measure it from per-CpG counts pooled over a group's samples.
 ##
 ## Per region, over CpGs with pooled depth >= min_n:
-##   n_cov        CpGs used
-##   meth_sd      SD of the per-CpG rates
-##   meth_range   max - min
+##   n_cov            CpGs used
+##   meth_all         mean of the per-CpG rates, over every CpG in the region
+##   meth_all_sd      their SD
+##   meth_all_iqr     their interquartile range
+##   meth_target, meth_target_sd, meth_target_iqr
+##                    the same over the listed (target) CpGs only (SD and IQR are
+##                    NA with fewer than two covered targets)
+##   meth_range       max - min, over every CpG
 ##   meth_jump    mean |p_(j+1) - p_j| over consecutive CpGs
 ##   r2_split     share of the variance explained by the best single cut into two
 ##                contiguous pieces: 1 = two flat halves, low = interleaved
 ##   n_low, n_high  CpGs at <= low / >= high
 ##   target_lowhigh the listed CpGs include one at <= low and one at >= high
-##   layout       "uniform"          meth_sd <= sd_uniform
+##   layout       "uniform"          SD of the rates <= sd_uniform
 ##                "graded"           not uniform, but not a low/high mixture
 ##                "mixed_split"      >= 2 CpGs at each extreme, r2_split >= r2_cut
 ##                "mixed_interleaved" >= 2 CpGs at each extreme, r2_split < r2_cut
@@ -42,28 +47,35 @@ heterogeneity_stats <- function(M, N, region_id, target = NULL, min_n = 20L,
 
   one <- function(p, tgt) {
     ok <- !is.na(p); q <- p[ok]; n <- length(q)
+    tq <- p[ok & tgt]
+    spread <- function(v) if (length(v) >= 2L) c(stats::sd(v), stats::IQR(v)) else c(NA_real_, NA_real_)
+    sa <- spread(q); st <- spread(tq)
+    tlh <- length(tq) >= 2L && any(tq <= low) && any(tq >= high)
+    base <- list(n_cov = n, meth_all = if (n) mean(q) else NA_real_,
+                 meth_all_sd = sa[1], meth_all_iqr = sa[2],
+                 meth_target = if (length(tq)) mean(tq) else NA_real_,
+                 meth_target_sd = st[1], meth_target_iqr = st[2])
     if (n < 3L)
-      return(list(n_cov = n, meth_sd = NA_real_, meth_range = NA_real_, meth_jump = NA_real_,
-                  r2_split = NA_real_, n_low = NA_integer_, n_high = NA_integer_,
-                  target_lowhigh = NA))
+      return(c(base, list(meth_range = NA_real_, meth_jump = NA_real_, r2_split = NA_real_,
+                          n_low = NA_integer_, n_high = NA_integer_, target_lowhigh = tlh,
+                          enough = FALSE)))
     sst <- sum((q - mean(q))^2)
     cs <- cumsum(q); cs2 <- cumsum(q^2); k <- seq_len(n - 1L)
     sse <- (cs2[k] - cs[k]^2 / k) + ((cs2[n] - cs2[k]) - (cs[n] - cs[k])^2 / (n - k))
-    tq <- p[ok & tgt]
-    list(n_cov = n, meth_sd = stats::sd(q), meth_range = max(q) - min(q),
-         meth_jump = mean(abs(diff(q))),
-         r2_split = if (sst > 1e-12) 1 - min(sse) / sst else 1,
-         n_low = sum(q <= low), n_high = sum(q >= high),
-         target_lowhigh = length(tq) >= 2L && any(tq <= low) && any(tq >= high))
+    c(base, list(meth_range = max(q) - min(q), meth_jump = mean(abs(diff(q))),
+                 r2_split = if (sst > 1e-12) 1 - min(sse) / sst else 1,
+                 n_low = sum(q <= low), n_high = sum(q >= high), target_lowhigh = tlh,
+                 enough = TRUE))
   }
   out <- data.table::rbindlist(lapply(colnames(M), function(g) {
     d <- data.table::data.table(region_id = region_id, p = P[, g], tgt = target)
     d[, one(p, tgt), by = region_id][, celltype := g]
   }))
-  out[, layout := data.table::fifelse(is.na(meth_sd), "too_few_cpgs",
+  out[, layout := data.table::fifelse(!enough, "too_few_cpgs",
                    data.table::fifelse(n_low >= 2L & n_high >= 2L,
                      data.table::fifelse(r2_split >= r2_cut, "mixed_split", "mixed_interleaved"),
-                   data.table::fifelse(meth_sd <= sd_uniform, "uniform", "graded")))]
+                   data.table::fifelse(meth_all_sd <= sd_uniform, "uniform", "graded")))]
+  out[, enough := NULL]
   data.table::setcolorder(out, c("region_id", "celltype"))
   out[]
 }
@@ -91,9 +103,9 @@ pooled_region_counts <- function(reg, sheet) {
   list(region_id = rid, cpg_index = ix, M = M, N = N)
 }
 
-## Which rows of pooled_region_counts() are listed CpGs.
+## Which rows of pooled_region_counts() are listed CpGs (a listed position at
+## the G of an indexed CpG counts for that CpG; see match_targets()).
 target_rows <- function(reg, cpg, ref) {
-  ix <- unlist(Map(seq.int, reg$startCpG, reg$endCpG))
-  key_ref <- paste(ref$chr[ix], ref$pos[ix])
-  key_ref %in% paste(cpg$chr, cpg$pos)
+  n <- sum(reg$endCpG - reg$startCpG + 1L)
+  seq_len(n) %in% match_targets(reg, cpg, ref)$row
 }
